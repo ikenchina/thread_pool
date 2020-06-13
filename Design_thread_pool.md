@@ -60,6 +60,7 @@ Categories of tasks:
 - Combination
 
 Reference to 《Java Concurrency in Practice》.
+
 $$
 N_{thread} = number\ of\ CPUs
 $$
@@ -74,7 +75,8 @@ $$
 
 
 
-**Compute intensive**
+**Compute intensive**    
+
 $$
 N_{thread} = N_{CPU} + 1
 $$
@@ -162,7 +164,7 @@ public:
 };
 ```
 
-Define Fifo queue inherited Queue
+Define FIFO queue inherited Queue
 
 ```
 class FifoQueue : public Queue
@@ -192,7 +194,7 @@ public:
 };
 ```
 
-Implement Fifo blocking queue
+Implement FIFO blocking queue
 
 ```
 class BaseBlockingQueue : public BlockingQueue
