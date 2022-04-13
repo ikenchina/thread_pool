@@ -4,13 +4,13 @@
 
 ## Introduction
 
-Lightweight, generic, pure C++11 thread pool.  
+Lightweight, generic, pure C++ thread pool.  
 
 It supports 
 
-- task : thread pool executes it ASAP
-- delay task : thread pool execute it at a point in time
-- scale out/in pool size dynamically
+- Task : thread pool executes it ASAP
+- Delay task : thread pool execute it at a point in time
+- Scale out/in pool size dynamically
 
 
 
