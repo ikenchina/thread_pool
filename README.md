@@ -1,5 +1,6 @@
 # C++ thread pool
 
+《[How to design a thread pool](Design_thread_pool.md)》
 
 
 ## Introduction
