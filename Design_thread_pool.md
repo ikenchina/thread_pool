@@ -1,5 +1,6 @@
 # How to design a thread pool
 
+[《中文版》](Design_thread_pool_zh.md)
 
 ## Why do we need a thread pool
 

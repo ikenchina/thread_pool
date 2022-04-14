@@ -1,31 +1,23 @@
-# C++ thread pool
+# C++ 线程池
 
-[《How to design a thread pool》](Design_thread_pool.md)
-
-[《中文》](README_zh.md)
+《[如何设计一个线程池](Design_thread_pool_zh.md)》
 
 
-## Introduction
+## 介绍
 
-Lightweight, generic, pure C++ thread pool.  
+一个轻量级，通用，纯C++实现的线程池。
 
-It supports 
-
-- Task : thread pool executes it ASAP
-- Delay task : thread pool execute it at a point in time
-- Scale out/in pool size dynamically
-
+支持如下特性：
+- 普通任务：提交任务给线程池后，线程池会立即执行
+- 延迟任务：线程池在指定时间点执行
+- 动态对线程池进行扩容、缩容
 
 
-## Design
-
-
+## 设计
 
 ### APIs
 
-
-
-#### enum
+#### 枚举
 
 ```
 enum StatusCode
@@ -36,22 +28,16 @@ enum StatusCode
 };
 ```
 
+#### 类
 
-
-#### class
-
-
-
-##### **Context**
+##### **上下文**
 
 **WithTimeout**
 
 ```
 static Context WithTimeout(const Context& ctx = Context(), std::chrono::nanoseconds t = std::chrono::nanoseconds::max())
 ```
-
-Create a new context with timeout.
-
+创建一个有超时信息的上下文
 
 
 **WithDeadline**
@@ -59,13 +45,10 @@ Create a new context with timeout.
 ```
 static Context WithDeadline(const Context& ctx = Context(), std::chrono::system_clock::time_point deadline = std::chrono::time_point<std::chrono::system_clock>::max())
 ```
-
-Create a new context with a deadline.
-
+创建一个有限期的上下文
 
 
-
-##### ThreadPoolSettings (configurations)
+##### 线程池设置
 
 
 **SetMinPoolSize**
@@ -73,8 +56,7 @@ Create a new context with a deadline.
 ```
 ThreadPoolSettings& SetMinPoolSize(size_t t)
 ```
-
-Set minimum number of threads, default value is 1.
+设置最小线程池，默认是1。
 
 
 **SetMaxPoolSize**
@@ -82,8 +64,7 @@ Set minimum number of threads, default value is 1.
 ```
 ThreadPoolSettings& SetMaxPoolSize(size_t t)
 ```
-
-Set maximum number of threads, default value is the number of CPU cores + 1.
+设置最大线程池，默认是CPU核心数+1
 
 
 **SetMaxQueueSize**
@@ -91,8 +72,8 @@ Set maximum number of threads, default value is the number of CPU cores + 1.
 ```
 ThreadPoolSettings& SetMaxQueueSize(size_t t)
 ```
+最长队列，超过队列`ScheduleTask`将会被阻塞，默认是1000。
 
-Set max queue size, if reach this value, `ScheduleTask` will be blocked. Default value is 1000.
 
 
 **SetMaxDelayQueueSize**
@@ -100,8 +81,8 @@ Set max queue size, if reach this value, `ScheduleTask` will be blocked. Default
 ```
 ThreadPoolSettings& SetMaxDelayQueueSize(size_t t)
 ```
+设置最大延迟队列，超过队列`ScheduleDelayTask`将会被阻塞。
 
-Set max delay queue size, if reach this value, `ScheduleDelayTask` will be blocked. Default value is 1000.
 
 
 **SetKeepaliveTime**
@@ -109,9 +90,8 @@ Set max delay queue size, if reach this value, `ScheduleDelayTask` will be block
 ```
 ThreadPoolSettings& SetKeepaliveTime(std::chrono::nanoseconds idle_duration)
 ```
+设置最大keepalive时间，若一个idle线程超过此时间没有执行任务则会被回收，默认10秒。
 
-Set a maximum duration, if a thread waits a task more than this value, the thread will be destroy. 
-Default value is 10 seconds.
 
 
 **SetScaleoutTime**
@@ -119,10 +99,7 @@ Default value is 10 seconds.
 ```
 ThreadPoolSettings& SetScaleoutTime(std::chrono::nanoseconds duration)
 ```
-
-If queue is full and waits to enqueue more than this duration value, create a new thread when thread number is less `SetMaxPoolSize`.
-Default value is 300 milliseconds.
-
+如果队列满了，且等待一段时间后任务仍然没有被调度，则进行扩容，默认是300微秒。
 
 
 
@@ -134,11 +111,7 @@ Default value is 300 milliseconds.
 ```
 virtual StatusCode Push(const Context& ctx, const Task& task) = 0;
 ```
-
-Enqueue a task to queue.
-
-Enqueue a task to a full queue is blocked until queue is available or Context is timeout.
-
+将任务入队列。如果队列满了，则会被阻塞直到Context超时。
 
 
 **Pop**
@@ -146,10 +119,7 @@ Enqueue a task to a full queue is blocked until queue is available or Context is
 ```
 virtual StatusCode Pop(const Context& ctx, Task* t) = 0;
 ```
-
-Dequeue a task from queue.
-
-Dequeue a task from an empty queue until other threads enqueue a task or Context is timeout.
+从队列中移除出一个任务，如果队列没有任务，则会被阻塞直到Context超时。
 
 
 
@@ -158,9 +128,7 @@ Dequeue a task from an empty queue until other threads enqueue a task or Context
 ```
 virtual void Clear() = 0;
 ```
-
-Remove all tasks from queue.
-
+清除队列中所有的任务。
 
 
 
@@ -170,13 +138,7 @@ Remove all tasks from queue.
 ```
 BaseBlockingQueue(std::shared_ptr<Queue> queue = std::make_shared<FifoQueue>())
 ```
-
-Create a blocking queue.
-
-Default queue is a FifoQueue.
-
-
-
+创建一个阻塞队列，默认是 先进先出队列。
 
 
 ##### MixedBlockingQueue
@@ -184,56 +146,41 @@ Default queue is a FifoQueue.
 ```
 MixedBlockingQueue(size_t fifo_queue_size = 1000, size_t delay_queue_size=1000)
 ```
-
-Create a mixed BlockingQueue.
-
-MixedBlockingQueue consist of a FifoQueue and a DelayQueue.
+创建一个混合队列，由 先进先出队列和延迟队列组成。
 
 
 
 
-
-##### ThreadPool
-
+##### 线程池
 
 
-**Constructor**
+**构造函数**
 
 ```
 ThreadPool(ThreadPoolSettings settings, std::shared_ptr<BlockingQueue> queue = std::make_shared<MixedBlockingQueue>());
 ```
+创建一个线程池。
 
-Create a thread pool.
-
-Parameters:
-
-- settings
-- queue :  blocking queue,
+参数：
+- 配置
+- 阻塞队列
 
 
-
-
-
-**Start**
+**启动线程池**
 
 ```
 void Start();
 ```
 
-Initliaze minimum number of threads.
 
-
-
-**Stop**
+**停止线程池**
 
 ```
 void Stop(bool force=false);
 ```
-
-force
-
-- False : wait thread pool to complete all tasks.
-- True : clear all pending tasks and wait to complete ongoing tasks.
+force :
+- False ： 等待线程池处理完队列中所有任务
+- True ： 等待线程池处理完正在处理的任务，队列中的任务丢弃。
 
 
 
@@ -244,15 +191,10 @@ template<class F, class... Args>
 auto ScheduleTask(const Context& ctx, F&& function, Args&&... args) 
         -> std::tuple<StatusCode, std::future<typename std::result_of<F(Args...)>::type>>
 ```
-
-Push a task to queue and execute it as soon as possible.
-
-- Context : 
-  - `Context()`  : blocks until the task be queued
-  - `Context::WithTimeout(Context(), duration_timeout)` : blocks until the task be queued or timeout
-  - function 
-  - args : variadic function arguments 
-
+将一个任务入队列
+- 上下文
+  - `Context()` ： 阻塞直到任务完成入队列
+  - `Context::WithTimeout(Context(), duration_timeout)` ： 阻塞直到任务完成入队列或者超时
 
 
 **ScheduleDelayTask**
@@ -262,13 +204,7 @@ template<class D, class F, class... Args>
 auto ScheduleDelayTask(const Context& ctx, D delay_duration, F&& function, Args&&... args) 
         -> std::tuple<StatusCode, std::future<typename std::result_of<F(Args...)>::type>>
 ```
-
-Push a delay task to delay queue and execute it at a point in time.
-
-- Context
-- delay_duration : executes the function after delay_duration
-  - Function
-  - args : variadic function arguments 
+将一个任务在指定时间点执行。     
 
 
 
@@ -277,8 +213,7 @@ Push a delay task to delay queue and execute it at a point in time.
 ```
 size_t PoolSize();
 ```
-
-The number of runnable threads.
+返回线程池大小
 
 
 
@@ -287,9 +222,7 @@ The number of runnable threads.
 ```
 size_t QueueSize();
 ```
-
-How many tasks in queue.
-
+队列中任务数量。
 
 
 **DelayQueueSize**
@@ -297,24 +230,17 @@ How many tasks in queue.
 ```
 size_t DelayQueueSize();
 ```
-
-How many tasks in delay queue.
-
+延迟队列中任务数量。
 
 
 
+## 使用
 
-## Usage
+### 使用
 
+**1. 创建线程池**
 
-
-### Usage
-
-
-
-**1. create thread pool**
-
-- 1.1 create a settings first
+- 1.1 创建线程池
 
 ```
 kthreadpool::ThreadPoolSettings settings;
@@ -322,14 +248,13 @@ settings.SetKeepaliveTime(idle).SetMaxDelayQueueSize(2).SetMaxQueueSize(3).SetMa
 ```
 
 
-
-- 1.2 create thread pool
+- 1.2 使用默认参数创建线程池
 
 ```
 kthreadpool::ThreadPool tp(settings);
 ```
 
-or create thread pool with a specific queue.
+或者指定队列来创建线程池
 
 ```
 std::shared_ptr<BlockingQueue> delayed_queue = std::make_shared<PriorityQueue>(100); // size is 100
@@ -339,7 +264,7 @@ kthreadpool::ThreadPool tp(settings, delayed_queue);
 
 
 
-- 1.3 start (settings.MinPoolSize()) thread
+- 1.3 启动线程池
 
 ```
 tp.Start();
@@ -347,10 +272,9 @@ tp.Start();
 
 
 
-**2. schedule task**
+**2. 调度任务**
 
-
-schedule a delayed task
+调度一个延迟任务
 
 ```
 auto plus_func = [=](int a, int b) -> int {
@@ -369,8 +293,7 @@ if (result != 3)
 ```
 
 
-
-schedule a task
+调度一个普通任务
 
 ```
 auto plus_func = [=](int a, int b) -> int {
@@ -390,17 +313,16 @@ if (result != 3)
 
 
 
-**3. stop thread pool**
+**3. 停止线程池**
 
-wait threads to complete all tasks.
-
+等待所有任务被执行才返回
 ```
 tp.Stop();
 ```
 
 
 
-### Example
+### 例子
 
 ```
 #include <chrono>
@@ -438,9 +360,9 @@ int main(int argc, char* argv[])
 
 
 
-## Build
+## 构建
 
-ThreadPool is platform independent. It's pure C++11.
+线程池完全基于C++11开发，没有其他依赖。
 
 cmake
 
