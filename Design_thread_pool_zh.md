@@ -363,14 +363,13 @@ public:
     std::shared_ptr<BlockingQueue> queue = std::make_shared<MixedBlockingQueue>());、
     
     // 禁止拷贝
-	ThreadPool(const ThreadPool &) = delete;
-	ThreadPool(ThreadPool &&) = delete;
-	ThreadPool & operator=(const ThreadPool &) = delete;
-	ThreadPool & operator=(ThreadPool &&) = delete;
+    ThreadPool(const ThreadPool &) = delete;
+    ThreadPool(ThreadPool &&) = delete;
+    ThreadPool & operator=(const ThreadPool &) = delete;
+    ThreadPool & operator=(ThreadPool &&) = delete;
 	
-	
-	// 用于动态调整线程池配置
-	ThreadPoolSettings& GetSettings() {return settings_;}
+    // 用于动态调整线程池配置
+    ThreadPoolSettings& GetSettings() {return settings_;}
 }
 ```
 
