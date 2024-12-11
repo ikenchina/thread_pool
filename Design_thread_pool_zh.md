@@ -72,6 +72,7 @@
 
 
 **IO密集型和混合型**
+
 $$
 N_{thread} = number\ of\ CPUs
 $$
@@ -219,7 +220,7 @@ public:
             {
                 // 如果等待超时且超过deadline，则返回Timeout
                 if (std::chrono::system_clock::now() >= ctx.Deadline())
-				    return StatusCode::Timeout;
+                    return StatusCode::Timeout;
             }
         }
         if (shutdown_)
@@ -233,8 +234,8 @@ public:
     virtual StatusCode Pop(const Context& ctx, Task* t)
     {
         std::unique_lock<std::mutex> lock(queue_mutex_);		
-		std::cv_status cv_status = std::cv_status::no_timeout;	
-		// 如果队列为空且没有关闭，则等待（有任务写入队列）
+        std::cv_status cv_status = std::cv_status::no_timeout;	
+        // 如果队列为空且没有关闭，则等待（有任务写入队列）
         if (queue_->Empty() && !shutdown_)
         {
             cv_status = in_queue_cond_.wait_until(lock, ctx.Deadline());
@@ -338,16 +339,16 @@ public:
 class ThreadPoolSettings
 {
     // 最小线程数
-	std::atomic<size_t> min_pool_size_;
-	
-	// 最大线程数
-	std::atomic<size_t> max_pool_size_;
-	
-	// 空闲线程时间：当超过此阈值线程仍然无法获取到任务，则销毁此线程
-	std::chrono::nanoseconds keepalive_time_ = std::chrono::seconds(10);
-	
-	// 线程扩容时间：当Push任务到队列且队列已满时，等待超过此阈值则进行新建一个新线程
-	std::chrono::nanoseconds scaleout_time_ = std::chrono::milliseconds(300);
+    std::atomic<size_t> min_pool_size_;
+
+    // 最大线程数
+    std::atomic<size_t> max_pool_size_;
+
+    // 空闲线程时间：当超过此阈值线程仍然无法获取到任务，则销毁此线程
+    std::chrono::nanoseconds keepalive_time_ = std::chrono::seconds(10);
+
+    // 线程扩容时间：当Push任务到队列且队列已满时，等待超过此阈值则进行新建一个新线程
+    std::chrono::nanoseconds scaleout_time_ = std::chrono::milliseconds(300);
 };
 ```
 
@@ -367,7 +368,7 @@ public:
     ThreadPool(ThreadPool &&) = delete;
     ThreadPool & operator=(const ThreadPool &) = delete;
     ThreadPool & operator=(ThreadPool &&) = delete;
-	
+
     // 用于动态调整线程池配置
     ThreadPoolSettings& GetSettings() {return settings_;}
 }
@@ -390,18 +391,18 @@ void Stop(bool force = false);
 ```
 template<class F, class... Args>
 auto ScheduleTask(const Context& ctx, F&& f, Args&&... args) 
-	-> std::tuple<StatusCode, std::future<typename std::result_of<F(Args...)>::type>>
+    -> std::tuple<StatusCode, std::future<typename std::result_of<F(Args...)>::type>>
 {
-	using return_type = typename std::result_of<F(Args...)>::type;
+    using return_type = typename std::result_of<F(Args...)>::type;
 
-	auto task = std::make_shared<std::packaged_task<return_type()> >(
-		std::bind(std::forward<F>(f), std::forward<Args>(args)...)
-	);
-		
-	std::future<return_type> res = task->get_future();
-	auto tt = Task([task](){(*task)();});
-	auto ret = scheduleTask(ctx, tt);
-	return std::make_tuple(ret, std::move(res));
+    auto task = std::make_shared<std::packaged_task<return_type()> >(
+        std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+    );
+
+    std::future<return_type> res = task->get_future();
+    auto tt = Task([task](){(*task)();});
+    auto ret = scheduleTask(ctx, tt);
+    return std::make_tuple(ret, std::move(res));
 }
 ```
 
@@ -415,44 +416,44 @@ auto ScheduleTask(const Context& ctx, F&& f, Args&&... args)
 ```
 StatusCode ThreadPool::scheduleTask(const Context& ctx, Task& task)
 {
-	StatusCode res = StatusCode::Ok;
+    StatusCode res = StatusCode::Ok;
 
-	while(true)
-	{
-	    // Context的Deadline 和 IncreaseThreadDuration 中较小者作为 Push队列的超时时间
-		Context ctx2 = Context::WithDeadline(ctx, TimeAddDuration(std::chrono::system_clock::now(), settings_.IncreaseThreadDuration()));
-		if (ctx.Deadline() < ctx2.Deadline())
-		{
-			ctx2.SetDeadline(ctx.Deadline());
-		}
-		
-		res = queue_->Push(ctx2, task);
+    while(true)
+    {
+        // Context的Deadline 和 IncreaseThreadDuration 中较小者作为 Push队列的超时时间
+        Context ctx2 = Context::WithDeadline(ctx, TimeAddDuration(std::chrono::system_clock::now(), settings_.IncreaseThreadDuration()));
+        if (ctx.Deadline() < ctx2.Deadline())
+        {
+            ctx2.SetDeadline(ctx.Deadline());
+        }
+        
+        res = queue_->Push(ctx2, task);
 
         // 如果需要回收线程
-		if (needGcIdleWorkers())
-			GcIdleWorkers();
+        if (needGcIdleWorkers())
+            GcIdleWorkers();
 
         // 如果线程池还没有线程，则新建一个
-		if (available_workers_size_ == 0)
-		{
-			uint expected = 0; 
-			std::unique_lock<std::mutex> lock(thread_mutex_);
-			if (available_workers_size_.compare_exchange_strong(expected, 1))
-				CreateThread();
-		}
+        if (available_workers_size_ == 0)
+        {
+            uint expected = 0; 
+            std::unique_lock<std::mutex> lock(thread_mutex_);
+            if (available_workers_size_.compare_exchange_strong(expected, 1))
+                CreateThread();
+        }
 
-		if (res != StatusCode::Timeout)
-			break;
+        if (res != StatusCode::Timeout)
+            break;
 
         // 如果超过Context的Deadline
-		if (std::chrono::system_clock::now() >= ctx.Deadline())
-			break;
+        if (std::chrono::system_clock::now() >= ctx.Deadline())
+            break;
         
         // 尝试新建一个线程
-		TryIncreaseThreads();
-	}
+        TryIncreaseThreads();
+    }
 
-	return res;
+    return res;
 }
 ```
 
